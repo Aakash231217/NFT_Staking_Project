@@ -8,9 +8,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
- * @title NFTStaking
- * @dev A contract for staking NFTs and earning ERC20 token rewards.
- * This contract is upgradeable using the UUPS pattern.
+ A contract for staking NFTs and earning ERC20 token rewards.
+ contract is upgradeable using the UUPS pattern.
  */
 contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
     uint256 private _counter;
