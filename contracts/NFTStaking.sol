@@ -19,12 +19,15 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
         return _counter;
     }
 
-   IERC721Upgradeable public nftContract;
-   IERC20Upgradeable public rewardToken;
+   ERC721Upgradeable public nftContract;
+   ERC20Upgradeable public rewardToken;
 
    uint256 public rewardPerBlock;
    uint256 public delayPeriod;
    uint256 public unbondingPeriod;
+   event NFTStaked(address indexed user, uint256 tokenId);
+   event NFTUnstaked(address indexed user, uint256 tokenId);
+   event RewardsClaimed(address indexed user, uint256 amount);
 
    struct StakedNFT{
     uint256 tokenId;
@@ -44,18 +47,18 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
     uint256 _delayPeriod,
     uint256 _unbondingPeriod
    ) public initializer {
-    _Pausable_init();
-    _Ownable_init();
-    _UUPSUpgradeable_init();
+    __Pausable_init();
+    __Ownable_init(msg.sender);
+    __UUPSUpgradeable_init();
 
-    nftContract = IERC721Upgradeable(_nftContract);
-    rewardToken = IERC720Upgradeable(_rewardToken);
+    nftContract = ERC721Upgradeable(_nftContract);
+    rewardToken = ERC20Upgradeable(_rewardToken);
     rewardPerBlock = _rewardPerBlock;
     delayPeriod = _delayPeriod;
     unbondingPeriod = _unbondingPeriod;
    }
    function stakeNFT(uint256 tokenId) external whenNotPaused{
-    nftContract.transferForm(msg.sender,address(this),tokenId);
+    nftContract.transferFrom(msg.sender,address(this),tokenId);
     stakedNFTs[msg.sender].push(StakedNFT({
         tokenId: tokenId,
         stakedAt:block.number,
@@ -64,14 +67,21 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
     }));
     emit NFTStaked(msg.sender, tokenId);
    }
+    function unstakeNFT(uint256 index) external {
+        require(index < stakedNFTs[msg.sender].length, "Invalid index");
+        StakedNFT storage nft = stakedNFTs[msg.sender][index];
+        require(nft.unstakedAt == 0, "NFT already unstaked");
 
+        nft.unstakedAt = block.number;
+        emit NFTUnstaked(msg.sender, nft.tokenId);
+    }
    function withdrawNFT(uint256 index)external {
     require(index < stakedNFTs[msg.sender].length,"Invalid index");
      StakedNFT storage nft = stakedNFTs[msg.sender][index];
      require(nft.unstakedAt > 0, "NFT not Unstaked");
      require(block.number >= nft.unstakedAt + unbondingPeriod, "Unbonding period not over");
 
-     nftContract.transferForm(address(this),msg.sender, nft.tokenId);
+     nftContract.transferFrom(address(this),msg.sender, nft.tokenId);
      stakedNFTs[msg.sender][index] = stakedNFTs[msg.sender][stakedNFTs[msg.sender].length-1];
      stakedNFTs[msg.sender].pop();
     }
@@ -84,7 +94,8 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
         pendingRewards[msg.sender] = 0;
         for(uint256 i=0;i<stakedNFTs[msg.sender].length;i++){
             if(stakedNFTs[msg.sender][i].unstakedAt==0){
-                stakedNFTs[msg.sender[i].lastRewardsClaimed] = block.number;
+                stakedNFTs[msg.sender][i].lastRewardsClaimed = block.number;
+
             }
         }
         rewardToken.transfer(msg.sender, rewards);
@@ -96,7 +107,7 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
         for(uint256 i=0;i<stakedNFTs[user].length;i++){
             StakedNFT memory nft = stakedNFTs[user][i];
             uint256 endBlock = nft.unstakedAt ==0 ? block.number:nft.unstakedAt;
-            totalRewards+=(endBlock-nft.lastRewardClaimed)*rewardPerBlock;
+            totalRewards+=(endBlock-nft.lastRewardsClaimed)*rewardPerBlock;
         }
         return totalRewards + pendingRewards[user];
     }
