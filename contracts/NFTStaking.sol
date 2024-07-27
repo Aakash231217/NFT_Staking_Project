@@ -28,12 +28,16 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
    event NFTUnstaked(address indexed user, uint256 tokenId);
    event RewardsClaimed(address indexed user, uint256 amount);
 
+/** structure to show details of staked NFTs **/
+
    struct StakedNFT{
     uint256 tokenId;
     uint256 stakedAt;
     uint256 unstakedAt;
     uint256 lastRewardsClaimed;
    }
+
+/** Mapping to store staked NFTs **/
 
    mapping(address=>StakedNFT[]) public stakedNFTs;
    mapping(address=>uint256) public pendingRewards;
@@ -56,6 +60,9 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
     delayPeriod = _delayPeriod;
     unbondingPeriod = _unbondingPeriod;
    }
+
+/**Allow users to stake their NFTs **/
+
    function stakeNFT(uint256 tokenId) external whenNotPaused{
     nftContract.transferFrom(msg.sender,address(this),tokenId);
     stakedNFTs[msg.sender].push(StakedNFT({
@@ -66,6 +73,9 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
     }));
     emit NFTStaked(msg.sender, tokenId);
    }
+
+/**Allow users to unstake their NFTs **/
+
     function unstakeNFT(uint256 index) external {
         require(index < stakedNFTs[msg.sender].length, "Invalid index");
         StakedNFT storage nft = stakedNFTs[msg.sender][index];
@@ -74,6 +84,9 @@ contract NFTStaking is PausableUpgradeable, OwnableUpgradeable, UUPSUpgradeable{
         nft.unstakedAt = block.number;
         emit NFTUnstaked(msg.sender, nft.tokenId);
     }
+
+/**  Allows users to withdraw their unstaked NFTs after the unbonding period **/
+
    function withdrawNFT(uint256 index)external {
     require(index < stakedNFTs[msg.sender].length,"Invalid index");
      StakedNFT storage nft = stakedNFTs[msg.sender][index];
